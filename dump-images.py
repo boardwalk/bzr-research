@@ -2,8 +2,6 @@
 import struct
 import subprocess
 import sys
-import io
-import os
 
 header = sys.stdin.buffer.raw.read(24)
 
