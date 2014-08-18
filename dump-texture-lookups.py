@@ -19,9 +19,7 @@ if flags & 0x02 or flags & 0x04:
     assert zero == 0
     #print('textureId = {:08x}'.format(textureId))
 
-s, = r.readformat('f')
-t, = r.readformat('f')
-p, = r.readformat('f')
+s, t, p = r.readformat('fff')
 
 if flags & 0x10:
     assert s != 0.0

@@ -3,5 +3,5 @@ TOOL='./main'
 DATFILE='../bzr/data/client_portal.dat'
 
 $TOOL $DATFILE cat $1 \
-    | python dump-structure-geom.py
+    | python3 dump-structure-geom.py
 

@@ -2,6 +2,7 @@
 import sys
 import math
 from reader import Reader
+from bsp import unpack_bsp
 
 r = Reader(sys.stdin.buffer.raw.read())
 
@@ -10,26 +11,26 @@ assert fid & 0xFF000000 == 0x0D000000
 
 unk1 = r.readint()
 print('unk1 = {}'.format(unk1))
-assert unk1 == 1 or unk1 == 2 or unk1 == 3
 
 unk2 = r.readint()
 assert unk2 == 0
 
 numTriangleStrips = r.readint()
-print('numTriangleStrips: {}'.format(numTriangleStrips))
+#print('numTriangleStrips = {}'.format(numTriangleStrips))
 
 unk3 = r.readint()
 print('unk3 = {}'.format(unk3))
 #assert unk3 == 0x32
 
-unk4 = r.readint()
-print('unk4 = {}'.format(unk4))
+numShorts = r.readint()
+#print('numShorts = {}'.format(numShorts))
 
 unk5 = r.readint()
+#print('unk5 = {}'.format(unk5))
 assert unk5 == 1
 
 numVertices = r.readshort()
-print('numVertices: {}'.format(numVertices))
+#print('numVertices: {}'.format(numVertices))
 
 unk6 = r.readshort()
 assert unk6 == 0
@@ -50,11 +51,6 @@ for i in range(numVertices):
 
     for j in range(ntexcoord):
         s, t = r.readformat('2f')
-        # AC does seem to use texture wrapping, so no assert [0-1] here
-        #if s < 0.0 or s > 10.0:
-        #    print('s out of range: {}'.format(s))
-        #if t < 0.0 or t > 10.0:
-        #    print('t out of range: {}'.format(t))
 
 for i in range(numTriangleStrips):
     primnum = r.readshort()
@@ -69,8 +65,6 @@ for i in range(numTriangleStrips):
     texnum = r.readshort()
     r.readshort()
 
-    print('texnum = {:x}'.format(texnum))
-
     for i in range(numindices):
         vertindex = r.readshort()
 
@@ -82,4 +76,11 @@ for i in range(numTriangleStrips):
         for i in range(numindices):
             r.readbyte()
 
-print('remaining: {}'.format(len(r)))
+
+for i in range(numShorts):
+    r.readshort()
+
+r.align()
+unpack_bsp(r, 1)
+
+r.dump(32)

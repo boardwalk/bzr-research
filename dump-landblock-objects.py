@@ -56,7 +56,6 @@ for i in range(numObjectsEx):
     #assert unks[3] == 0
     numChunks = r.readint()
     print("reading {} chunks".format(numChunks))
-    #r.readraw(numChunks * bytesperchunk)
 
     for j in range(numChunks):
         print("chunk {}".format(j))
