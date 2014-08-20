@@ -42,11 +42,12 @@ def unpack_bsp_leaf(r, tree_type):
         assert radius != 0xcdcdcdcd
         assert index_count != 0
     else:
-        assert x == 0xcdcdcdcd
-        assert y == 0xcdcdcdcd
-        assert z == 0xcdcdcdcd
-        assert radius == 0xcdcdcdcd
-        assert index_count == 0
+        pass
+        #assert x == 0xcdcdcdcd
+        #assert y == 0xcdcdcdcd
+        #assert z == 0xcdcdcdcd
+        #assert radius == 0xcdcdcdcd
+        #assert index_count == 0
 
 def unpack_bsp_portal(r, tree_type):
     x, y, z, d = r.readformat('4f')
