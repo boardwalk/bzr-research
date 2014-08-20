@@ -11,103 +11,63 @@ fid = r.readint()
 assert fid & 0xFF000000 == 0x0D000000
 
 numPieces = r.readint()
-print('numPieces = {}'.format(numPieces))
+print('{:08x} numPieces = {}'.format(fid, numPieces))
 
-############
-# FIRST PIECE STARTS HERE
-############
+for pi in range(numPieces):
+    #print('======')
 
-index = r.readint()
-assert index == 0
-print('index = {}'.format(index))
+    pieceIndex = r.readshort()
+    #print('pieceIndex = {}'.format(pieceIndex))
+    assert pieceIndex == pi
 
-numTriangleFans = r.readint()
-print('numTriangleFans = {}'.format(numTriangleFans))
+    unk4 = r.readshort()
+    #print('unk4 = {}'.format(unk4))
+    assert unk4 == 0
 
-numCollisionTriangleFans = r.readint()
-print('numCollisionTriangleFans = {}'.format(numCollisionTriangleFans))
+    numTriangleFans = r.readint()
+    #print('numTriangleFans = {}'.format(numTriangleFans))
 
-numShorts = r.readint()
-print('numShorts = {}'.format(numShorts))
+    numCollisionTriangleFans = r.readint()
+    #print('numCollisionTriangleFans = {}'.format(numCollisionTriangleFans))
 
-unk5 = r.readint()
-print('unk5 = {}'.format(unk5))
-assert unk5 == 1
+    numShorts = r.readint()
+    #print('numShorts = {}'.format(numShorts))
 
-numVertices = r.readshort()
-print('numVertices = {}'.format(numVertices))
+    unk5 = r.readint()
+    #print('unk5 = {}'.format(unk5))
+    assert unk5 == 1
 
-unk6 = r.readshort()
-assert unk6 == 0
-print('unk6 = {}'.format(unk6))
+    numVertices = r.readshort()
+    #print('numVertices = {}'.format(numVertices))
 
-for i in range(numVertices):
-    unpack_vertex(r, i)
+    unk6 = r.readshort()
+    #print('unk6 = {}'.format(unk6))
+    assert unk6 == 0
 
-for i in range(numTriangleFans):
-    unpack_trifan(r, i)
+    for i in range(numVertices):
+        unpack_vertex(r, i)
 
-for i in range(numShorts):
-    r.readshort()
-r.align()
+    for i in range(numTriangleFans):
+        unpack_trifan(r, i)
 
-unpack_bsp(r, 2)
+    for i in range(numShorts):
+        r.readshort()
+    r.align()
 
-for i in range(numCollisionTriangleFans):
-    unpack_trifan(r, i)
+    unpack_bsp(r, 2)
 
-unpack_bsp(r, 1)
+    for i in range(numCollisionTriangleFans):
+        unpack_trifan(r, i)
 
-unk7 = r.readint()
-print('unk7 = {}'.format(unk7))
+    unpack_bsp(r, 1)
 
-unpack_bsp(r, 0)
+    unk7 = r.readint()
+    #print('unk7 = {}'.format(unk7))
+    assert unk7 == 0 or unk7 == 1
 
-############
-# SECOND PIECE STARTS HERE
-############
+    if unk7:
+        unpack_bsp(r, 0)
 
-index2 = r.readint()
-print('index2 = {}'.format(index2))
-
-numTriangleFans2 = r.readint()
-print('numTriangleFans2 = {}'.format(numTriangleFans2))
-
-numCollisionTriangleFans2 = r.readint()
-print('numCollisionTriangleFans2 = {}'.format(numCollisionTriangleFans2))
-
-numShorts2 = r.readint()
-print('numShorts2 = {}'.format(numShorts2))
-
-unk12 = r.readint()
-print('unk12 = {}'.format(unk12))
-
-numVertices2 = r.readshort()
-print('numVertices2 = {}'.format(numVertices2))
-
-unk13 = r.readshort()
-print('unk13 = {}'.format(unk13))
-
-for i in range(numVertices2):
-    unpack_vertex(r, i)
-
-for i in range(numTriangleFans2):
-    unpack_trifan(r, i)
-
-for i in range(numShorts2):
-    r.readshort()
-r.align()
-
-unpack_bsp(r, 2)
-
-for i in range(numCollisionTriangleFans2):
-    unpack_trifan(r, i)
-
-unpack_bsp(r, 1)
-
-unk14 = r.readint()
-print('unk14 = {}'.format(unk14))
-
-unpack_bsp(r, 0)
+    r.align()
 
 assert len(r) == 0
