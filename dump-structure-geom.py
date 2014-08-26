@@ -71,3 +71,4 @@ for pi in range(numPieces):
     r.align()
 
 assert len(r) == 0
+
