@@ -2,7 +2,7 @@
 import sys
 import math
 from reader import Reader
-from bsp import unpack_bsp
+from bsp import BSPNode
 
 def unpack_trifan(r):
     nprim = r.readvarint()
@@ -66,32 +66,21 @@ for i in range(nvert):
 
     for j in range(ntexcoord):
         s, t = r.readformat('2f')
-        # AC does seem to use texture wrapping, so no assert [0-1] here
-        #if s < 0.0 or s > 10.0:
-        #    print('s out of range: {}'.format(s))
-        #if t < 0.0 or t > 10.0:
-        #    print('t out of range: {}'.format(t))
 
-if flags == 0x02 or flags == 0xA: # & 0x2 should suffice
-    unk2x, unk2y, unk2z = r.readformat('3f')
-
+if flags == 0x02 or flags == 0xA:
+    r.readformat('3f')
 
 if flags & 1:
     unpack_trifan(r)
-    #print("BEFORE")
-    #r.dump()
-    unpack_bsp(r, 1)
-    #print("AFTER")
-    #r.dump()
-
+    collision_bsp = BSPNode(r, 1)
+    print(str(collision_bsp))
 
 if flags == 3 or flags == 0xB:
     r.readformat('3f')
 
-#r.dump()
 if flags & 2:
     unpack_trifan(r)
-    unpack_bsp(r, 0)
+    BSPNode(r, 0)
 
 if flags & 8:
     r.readint()
@@ -102,29 +91,3 @@ if len(r) != 0:
 
 print('fid = {:08x}h nvert = {:04x}h remaining = {}'.format(fid, nvert, len(r)))
 
-"""
-if flags == 0xA:
-    r.dump(1024)
-
-    r.readint()
-
-    r.readint()
-    r.readint()
-    r.readint()
-    r.readint()
-
-    r.readint()
-    r.readint()
-    r.readint()
-    r.readint()
-
-    nthings = r.readint()
-
-    for i in range(nthings):
-        r.readshort()
-
-    r.readshort()
-    r.readshort()
-
-    assert len(r) == 0
-"""

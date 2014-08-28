@@ -2,7 +2,7 @@
 import sys
 import math
 from reader import Reader
-from bsp import unpack_bsp
+from bsp import BSPNode
 from model import unpack_vertex, unpack_trifan
 
 r = Reader(sys.stdin.buffer.raw.read())
@@ -54,19 +54,19 @@ for pi in range(numPieces):
         r.readshort()
     r.align()
 
-    unpack_bsp(r, 2)
+    BSPNode(r, 2)
 
     for i in range(numCollisionTriangleFans):
         unpack_trifan(r, i)
 
-    unpack_bsp(r, 1)
+    BSPNode(r, 1)
 
     unk7 = r.readint()
     #print('unk7 = {}'.format(unk7))
     assert unk7 == 0 or unk7 == 1
 
     if unk7:
-        unpack_bsp(r, 0)
+        BSPNode(r, 0)
 
     r.align()
 

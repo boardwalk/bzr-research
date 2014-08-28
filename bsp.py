@@ -1,100 +1,118 @@
-__all__ = ['unpack_bsp']
 
-indent = 0
+class Plane(object):
+    def __init__(self, x, y, z, d):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.d = d
 
-def unpack_bsp(r, tree_type):
-    global indent
-    indent += 1
-    bsp_type = r.readint()
-    #print(' ' * indent + '{:08x}'.format(bsp_type))
-    if bsp_type == 0x4c454146: # LEAF
-        #print(' ' * indent + "LEAF ENTER")
-        unpack_bsp_leaf(r, tree_type)
-        #print(' ' * indent + "LEAF LEAVE")
-    elif bsp_type == 0x504f5254: # PORT
-        #print(' ' * indent + "PORT ENTER")
-        unpack_bsp_portal(r, tree_type)
-        #print(' ' * indent + "PORT LEAVE")
-    else:
-        #print(' ' * indent + "NODE ENTER")
-        unpack_bsp_node(r, tree_type, bsp_type)
-        #print(' ' * indent + "NODE LEAVE")
-    indent -= 1
+    def __str__(self):
+        return 'Plane(x={:.2f} y={:.2f} z={:.2f} d={:.2f})'.format(self.x, self.y, self.z, self.d)
 
-def unpack_bsp_leaf(r, tree_type):
-    r.readint()
+class Sphere(object):
+    def __init__(self, x, y, z, r):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.r = r
 
-    if tree_type != 1:
-        return
+    def __str__(self):
+        return 'Sphere(x={:.2f} y={:.2f} z={:.2f} r={:.2f})'.format(self.x, self.y, self.z, self.r)
 
-    notempty = r.readint()
+class BSPNode(object):
+    def __init__(self, r, tree_type):
+        self.node_type = r.readformat('4s')[::-1]
+        if self.node_type == b'LEAF':
+            self.unpack_leaf(r, tree_type)
+        elif self.node_type == b'PORT':
+            self.unpack_portal(r, tree_type)
+        else:
+            self.unpack_node(r, tree_type)
 
-    x, y, z, radius = r.readformat('4I')
+    def unpack_leaf(self, r, tree_type):
+        self.leaf_index = r.readint()
 
-    index_count = r.readint()
-    for i in range(index_count):
-        r.readshort()
+        if tree_type != 1:
+            return
 
-    if notempty:
-        assert x != 0xcdcdcdcd
-        assert y != 0xcdcdcdcd
-        assert z != 0xcdcdcdcd
-        assert radius != 0xcdcdcdcd
-        assert index_count != 0
-    else:
-        pass
-        #assert x == 0xcdcdcdcd
-        #assert y == 0xcdcdcdcd
-        #assert z == 0xcdcdcdcd
-        #assert radius == 0xcdcdcdcd
-        #assert index_count == 0
+        self.solid = (r.readint() != 0)
+        self.bounds = Sphere(*r.readformat('4f'))
 
-def unpack_bsp_portal(r, tree_type):
-    x, y, z, d = r.readformat('4f')
+        trianglecount = r.readint()
+        self.triangles = [r.readshort() for i in range(trianglecount)]
 
-    unpack_bsp(r, tree_type)
-    unpack_bsp(r, tree_type)
+        if not self.solid:
+            del self.bounds
+            del self.triangles
 
-    if tree_type != 0:
-        return
+    def unpack_portal(self, r, tree_type):
+        self.partition = Plane(*r.readformat('4f'))
 
-    x, y, z, radius = r.readformat('4f')
+        self.front_child = BSPNode(r, tree_type)
+        self.back_child = BSPNode(r, tree_type)
 
-    tricount = r.readint()
-    polycount = r.readint()
+        if tree_type != 0:
+            return
 
-    for i in range(tricount):
-        r.readshort()
+        self.bounds = Sphere(*r.readformat('4f'))
 
-    for i in range(polycount):
-        r.readshort()
-        r.readshort()
+        trianglecount = r.readint()
+        polycount = r.readint()
 
-def unpack_bsp_node(r, tree_type, node_type):
-    x, y, z, dist = r.readformat('4f')
-    #print(' ' * indent + "plane: {}, {}, {}, {}".format(x, y, z, dist))
+        self.triangles = [r.readshort() for i in range(trianglecount)]
+        self.polys = [r.readformat('2H') for i in range(polycount)]
 
-    if node_type == 0x42506e6e or node_type == 0x4250496e: # BPnn, BPIn
-        #print(' ' * indent + "(BPnn, BPIn)")
-        unpack_bsp(r, tree_type)
-    elif node_type == 0x4270494e or node_type == 0x42706e4e: # BpIN, BpnN
-        #print(' ' * indent * "(BpIN, BpnN)")
-        unpack_bsp(r, tree_type)
-    elif node_type == 0x4250494e or node_type == 0x42506e4e: # BPIN, BPnN
-        #print(' ' * indent + "(BPIN, BPnN)")
-        unpack_bsp(r, tree_type)
-        unpack_bsp(r, tree_type)
-    else:
-        #print("node_type = {:08x}".format(node_type))
-        pass
+    def unpack_node(self, r, tree_type):
+        self.partition = Plane(*r.readformat('4f'))
 
-    if tree_type == 0 or tree_type == 1:
-        x, y, z, radius = r.readformat('4f')
-        #print(' ' * indent + "bounds: {}, {}, {}, {}".format(x, y, z, radius))
+        if self.node_type == b'BPnn' or self.node_type == b'BPIn':
+            self.front_child = BSPNode(r, tree_type)
+        elif self.node_type == b'BpIN' or self.node_type == b'BpnN':
+            self.back_child = BSPNode(r, tree_type)
+        elif self.node_type == b'BPIN' or self.node_type == b'BPnN':
+            self.front_child = BSPNode(r, tree_type)
+            self.back_child = BSPNode(r, tree_type)
+        else:
+            pass
 
-    if tree_type != 0:
-        return
+        if tree_type == 0 or tree_type == 1:
+            self.bounds = Sphere(*r.readformat('4f'))
 
-    index_count = r.readint()
-    for i in range(index_count):
-        r.readshort()
+        if tree_type != 0:
+            return
+
+        trianglecount = r.readint()
+        self.triangles = [r.readshort() for i in range(trianglecount)]
+
+    def __str__(self):
+        return self.to_str(0)
+
+    def to_str(self, indent):
+        result = '  ' * indent + 'Node {}\n'.format(self.node_type)
+
+        if hasattr(self, 'leaf_index'):
+            result += '  ' * indent + 'Leaf index: {}\n'.format(self.leaf_index)
+
+        if hasattr(self, 'partition'):
+            result += '  ' * indent + 'Partition: {}\n'.format(self.partition)
+
+        if hasattr(self, 'bounds'):
+            result += '  ' * indent + 'Bounds: {}\n'.format(self.bounds)
+
+        if hasattr(self, 'front_child'):
+            result += '  ' * indent + 'Front child:\n' + self.front_child.to_str(indent + 1)
+
+        if hasattr(self, 'back_child'):
+            result += '  ' * indent + 'Back child:\n' + self.back_child.to_str(indent + 1)
+
+        if hasattr(self, 'triangles'):
+            result += '  ' * indent + 'Triangles: {}\n'.format(self.triangles)
+
+        if hasattr(self, 'polys'):
+            result += '  ' * indent + 'Polys: {}\n'.format(self.polys)
+
+        if hasattr(self, 'solid'):
+            result += '  ' * indent + 'Solid: {}\n'.format(self.solid)
+
+        return result
+
