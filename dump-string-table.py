@@ -20,33 +20,34 @@ def readcryptstring(r):
 print('=== fid = {:08x}'.format(fid))
 
 count = r.readshort()
+
 unk1 = r.readshort()
+assert unk1 == 0x2000
 
 for i in range(count):
     iden = r.readint()
     name = readcryptstring(r)
     desc = readcryptstring(r)
-    print('iden = {:08x}, name = "{}" desc = "{}"'.format(iden, name, desc))
+    print('iden = {:08x} name = "{}" desc = "{}"'.format(iden, name, desc))
 
-    # family
     # 1 war
     # 2 life
     # 3 item
     # 4 creature
     # 5 void
-    family = r.readint() # GOOD!
-    assert family in range(1, 6)
+    school = r.readint()
+    assert school in range(1, 6)
 
     # 0x06 file id
-    icon = r.readint() # GOOD!
+    icon = r.readint()
     assert icon & 0xFF000000 == 0x06000000
     
-    # some sort of effect id perhaps?
-    unk = r.readint()
-    print('  unk = {}'.format(unk))
+    # spells of the same basic function but different level or target
+    # have the same family
+    family = r.readint()
 
     flags = r.readint()
-    assert flags & ~0x17CBF == 0 # GOOD!
+    assert flags & ~0x17CBF == 0
 
     #if flags & 1:
     #    print('  flag: offensive')
@@ -75,41 +76,68 @@ for i in range(count):
     #if flags & 0x10000:
     #    print('flag: damage over time')
 
-    mana = r.readint() # GOOD!
+    mana = r.readint()
 
+    # I'm not what the actual meaning of these is
     range1 = r.readfloat()
+    range2 = r.readfloat()
 
-    difficulty = r.readfloat()
-    print('  range1: {:.2f} {:.2f}'.format(range1, difficulty))
+    difficulty = r.readint()
 
-    economy = r.readint()
-    #print('  range1 = {:.2f} range2 = {:.2f} difficulty = {:.2f} economy = {:08x}'.format(range1, range2, difficulty, economy))
+    # 0.0 = not effected by spell economy
+    # 1.0 = effected by spell economy
+    economy = r.readfloat()
+    assert economy in [0.0, 1.0]
 
-    generation, unk2, speed, typ, iden2 = r.readformat('fIIII')
-    #print('  generation = {:.2f} unk2 = {:08x} speed = {:08x} type = {:08x} iden2 = {:08x}'.format(generation, unk2, speed, typ, iden2))
+    # I don't know wtf this is
+    generation = r.readint()
+    assert generation in [0x1, 0x2, 0x3, 0xE]
+
+    # larger is slower
+    # not sure of units
+    speed = r.readfloat()
+
+    typ = r.readint()
+
+    iden2 = r.readint()
+    assert iden2 == iden
 
     if typ == 1 or typ == 7 or typ == 12:
-        bar = r.readint()
-        dur1 = r.readformat('f')
-        #duration = r.readformat('d')
-        #print(' duration = {:.2f}'.format(duration))
+        # duration in seconds
+        dur = r.readformat('d')
 
     if typ == 1 or typ == 12:
-        baz = r.readint()
-        dur2 = r.readformat('f')
-
+        unk2 = r.readint()
+        assert unk2 == 0
+        unk3 = r.readint()
+        assert unk3 == 0xc4268000
 
     for j in range(8): # components
         r.readint()
 
+    # The visual effect ID
+    # see Effect DWORD in protocol docs
     castereffect = r.readint()
     targeteffect = r.readint()
 
     for j in range(4): # unknown
-        r.readint()
+        unk4 = r.readint()
+        assert unk4 == 0
 
     sortOrder = r.readint()
+
+    # see ObjectCategoryFlags DWORD in protocol docs
+    # 0x00000001 weapon
+    # 0x00000002 armor
+    # 0x00000004 clothing
+    # 0x00000010 creature
+    # 0x00000080 misc
+    # 0x00000100 missile weapon/ammo
+    # 0x00010000 portal
+    # 0x00000200 container
     targetMask = r.readint()
-    fellowship = r.readint()
-    #print('  castereffect = {:08x} targeteffect = {:08x} sortOrder = {:08x} targetMask = {:08x} fellowship = {:08x}'.format(castereffect, targeteffect, sortOrder, targetMask, fellowship))
+
+    # for spells that can effect multiple targets
+    # e.g. fellowship-wide, banes
+    perTargetMana = r.readint()
 

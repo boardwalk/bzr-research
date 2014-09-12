@@ -3,5 +3,5 @@ TOOL='./main'
 DATFILE='../bzr/data/client_portal.dat'
 
 $TOOL $DATFILE cat $1 \
-    | python dump-string-table.py
+    | python3 dump-string-table.py
 
