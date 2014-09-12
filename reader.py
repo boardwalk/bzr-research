@@ -11,6 +11,11 @@ class Reader(object):
         self.data = data
         self.position = 0
 
+    def peekformat(self, fmt, offset):
+        size = struct.calcsize(fmt)
+        t = struct.unpack(fmt, self.data[self.position + offset : self.position + offset + size])
+        return t if len(t) > 1 else t[0]
+
     def readformat(self, fmt):
         size = struct.calcsize(fmt)
         t = struct.unpack(fmt, self.data[self.position : self.position + size])
@@ -26,6 +31,9 @@ class Reader(object):
     def readint(self):
         return self.readformat('I')
 
+    def readfloat(self):
+        return self.readformat('f')
+
     def readvarint(self):
         val = self.readbyte()
         if val & 0x80:
@@ -35,6 +43,9 @@ class Reader(object):
     def align(self):
         while self.position % 4 != 0:
             self.position += 1
+
+    def raw(self):
+        return self.data[self.position :]
 
     def dump(self, maxlen=sys.maxsize, perline=32):
         hexpart = ''

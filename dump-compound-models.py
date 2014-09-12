@@ -13,7 +13,7 @@ assert flags <= 0xF
 
 nummodels = r.readint()
 
-print('=== fid: {:08x}, flags: {:x}, nummodels: {}'.format(fid, flags, nummodels))
+#print('=== fid: {:08x}, flags: {:x}, nummodels: {}'.format(fid, flags, nummodels))
 
 for i in range(nummodels):
     modelid = r.readint()
@@ -26,67 +26,28 @@ if flags & 1:
         #print('{:02x} parent: {:08x}'.format(i, parent))
         assert parent < nummodels or parent == 0xFFFFFFFF
 
-
 if flags & 2:
     for i in range(nummodels):
         sx, sy, sz = r.readformat('3f')
         #print('{:02x} scale: {}, {}, {}'.format(i, sx, sy, s))
 
-#unk1 = r.readint()
-#unk2 = r.readint()
-#unk3 = r.readint()
-#unk4 = r.readint()
-#print('unks: {:08x} {:08x} {:08x} {:08x}'.format(unk1, unk2, unk3, unk4))
-
-#i = 0
-#lastfind = -7*4
-#numfound = 0
-#
-#while len(r) >= i + 7 * 4:
-#    x, y, z, rw, rx, ry, rz = struct.unpack('7f', r.data[i: i + 7 * 4])
-#
-#    if abs(rw) > 100.0 or abs(rx) > 100.0 or abs(ry) > 100.0 or abs(rz) > 100.0:
-#        i += 1
-#        continue
-#
-#    mag = math.sqrt(rw*rw + rx*rx + ry*ry + rz*rz)
-#    if mag > 0.9999 and mag < 1.0001:
-#
-#        beforebytes = ''
-#        for bi in range(lastfind + 7 * 4, i + 7 * 4):
-#            beforebytes = '{} {:02x}'.format(beforebytes, r.data[bi])
-#        if beforebytes: print(beforebytes)
-#
-#        print('{:02x} i:{:04x} p:{:+.3f} {:+.3f} {:+.3f} r:{:+.3f} {:+.3f} {:+.3f} {:+.3f} mag={:f} step={:+d}'.format(numfound, i, x, y, z, rw, rx, ry, rz, mag, i - lastfind))
-#        #print('   {:08x} {:08x} {:08x}'.format(*struct.unpack('3I', r.data[0: 3 * 4])))
-#        lastfind = i
-#        numfound += 1
-#
-#    i += 1
-
 numExtendedLocs = r.readint()
-
-#if numExtendedLocs != 0:
-#    print('foo!')
 
 for i in range(numExtendedLocs):
     s = r.readint()
     t = r.readint()
     x, y, z = r.readformat('fff')
     rw, rx, ry, rz = r.readformat('ffff')
-    print("{:02x} s: {} t: {} pos: {:.2f} {:.2f} {:.2f} rot: {:.2f} {:.2f} {:.2f} {:.2f}".format(i, s, t, x, y, z, rw, rx, ry, rz))
+    #print("{:02x} s: {} t: {} pos: {:.2f} {:.2f} {:.2f} rot: {:.2f} {:.2f} {:.2f} {:.2f}".format(i, s, t, x, y, z, rw, rx, ry, rz))
     mag = math.sqrt(rw*rw + rx*rx + ry*ry + rz*rz)
     assert mag >= 0.999 and mag <= 1.001
 
 unk1 = r.readint()
 assert unk1 == 0
 unk2 = r.readint()
-#assert unk2 == 1
+assert unk2 >= 0x01 and unk2 <= 0x13
 unk3 = r.readint()
-#assert unk3 == 0
-print('unk2 = {}, unk3 = {}'.format(unk2, unk3))
-
-#print('===')
+assert unk3 <= 0xf0
 
 for i in range(nummodels):
     x, y, z = r.readformat('fff')
@@ -95,11 +56,54 @@ for i in range(nummodels):
     mag = math.sqrt(rw*rw + rx*rx + ry*ry + rz*rz)
     assert mag >= 0.999 and mag <= 1.001
 
-#for i in range(nummodels):
-#    a, b, c = r.readformat('fff')
-#    print("{:02x} a, b, c: {:.2f} {:.2f} {:.2f}".format(i, a, b, c))
+unk4 = r.readint()
+assert unk4 == 0
 
-r.dump(perline=64)
-#print('remaining: {}, bytes per model: {}'.format(len(r), float(len(r)) / float(nummodels)))
+#print('flags = {:x} unk2 = {:08x} unk3 = {:08x}'.format(flags, unk2, unk3))
+
+#unk5 = r.readint()
+#unk6 = r.readint()
+
+#unk7 = r.readfloat()
+#unk8 = r.readfloat()
+#unk9 = r.readfloat()
+
+#assert unk7 >= -10.0 and unk7 <= 10.0
+#assert unk8 >= -10.0 and unk8 <= 10.0
+#assert unk9 >= -10.0 and unk9 <= 10.0
+
+#assert unk7 == 0
+#assert unk8 == 0
+#assert unk9 == 0
+
+#found_at_offset = -1
+
+#for offset in range(0, len(r) - 4, 4):
+#    x = r.peekformat('I', offset)
+#    if (x & 0xFF000000) == 0x03000000:
+#        found_at_offset = offset
+#        break
+
+anim_id = r.peekformat('I', len(r) - 20)
+animset_id = r.peekformat('I', len(r) - 14)
+
+assert(anim_id == 0 or (anim_id & 0xFF000000) == 0x03000000)
+#assert(animset_id == 0 or (animset_id & 0xFF000000) == 0x09000000)
+
+if animset_id != 0:
+    print('animset_id = {:08x}'.format(animset_id))
+
+#found_at_offset = len(r) - 12
+#x = r.peekformat('I', found_at_offset)
+
+#if True:
+#if found_at_offset >= 0:
+#    print('=== fid: {:08x}, flags: {:x}, nummodels: {}'.format(fid, flags, nummodels))
+    #print('unk2 = {:08x} unk3 = {:08x}'.format(unk2, unk3))
+    #print('unk6 = {:08x} flags = {:01x} unk2 = {:08x} unk3 = {:08x} unk5 = {:08x}'.format(unk6, flags, unk2, unk3, unk5))
+    #print('unk7 = {:.2f} unk8 = {:.2f} unk9 = {:.2f}'.format(unk7, unk8, unk9))
+    #print("anim = {:08x} at offset = {}".format(x, found_at_offset))
+    #print("remaining: {}".format(len(r)))
+    #r.dump()
 
 
