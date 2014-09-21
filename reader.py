@@ -44,6 +44,10 @@ class Reader(object):
         while self.position % 4 != 0:
             self.position += 1
 
+    def skip(self, size):
+        self.position += size
+        assert self.position <= len(self.data)
+
     def raw(self):
         return self.data[self.position :]
 
