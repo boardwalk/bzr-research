@@ -5,19 +5,12 @@ from reader import Reader
 from loginsession import LoginSession
 from worldsession import WorldSession
 
-def is_private_ip(ipaddr):
-    if ipaddr & 0xFF000000 == 0x0A000000:
-        return True
-    if ipaddr & 0xFFFF0000 == 0xC0A80000:
-        return True
-    return False
-
 def read_exact(f, size):
     data = bytearray()
     while len(data) < size:
         moredata = f.read(size - len(data))
         if not moredata:
-            raise EOFError()
+            raise EOFError
         data.extend(moredata)
     return data
 

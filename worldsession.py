@@ -5,6 +5,8 @@ class WorldSession(object):
 
     def handle_client(self, r):
         print('client world message')
+        r.dump()
 
     def handle_server(self, r):
         print('server world message')
+        r.dump()
