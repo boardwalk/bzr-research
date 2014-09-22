@@ -82,12 +82,12 @@ class Session(object):
         print('{} {} {}'.format(self.name, self.pkt_source, fmt.format(*args, **kwargs)))
 
     def handle_pkt_major(self, r):
-        calc_crc = checksumpacket(r.raw())
+        calc_checksum = checksumpacket(r.raw())
         hdr = Header(r)
         self.log('{}'.format(hdr))
 
         if not (hdr.flags & 0x00000002):
-            assert calc_crc == hdr.crc
+            assert calc_checksum == hdr.checksum
 
         if hdr.flags == 0x00010000:
             self.handle_client_login_hello(hdr, r)
