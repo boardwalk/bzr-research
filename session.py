@@ -12,6 +12,10 @@ class Session(object):
     def __init__(self, name):
         self.name = name
         self.source = '------'
+        self.client_endpoint = 0
+        self.server_endpoint = 0
+        self.begin_time = 0.0
+        self.last_ping = 0.0
         self.log('new session')
 
     def log(self, fmt, *args, **kwargs):
@@ -19,14 +23,19 @@ class Session(object):
 
     def handle_client_pkt(self, r):
         self.source = 'client'
-        self.handle_pkt_major(r)
+        hdr = Header(r)
+        assert hdr.endpoint == self.client_endpoint
+        self.handle_pkt_major(hdr, r)
 
     def handle_server_pkt(self, r):
         self.source = 'server'
-        self.handle_pkt_major(r)
-   
-    def handle_pkt_major(self, r):
         hdr = Header(r)
+        if hdr.endpoint != 0:
+            self.server_endpoint = hdr.endpoint
+        assert hdr.endpoint == self.server_endpoint
+        self.handle_pkt_major(hdr, r)
+   
+    def handle_pkt_major(self, hdr, r):
         self.log('{}'.format(hdr))
         if hdr.flags == 0x00010000:
             self.handle_client_login_hello(hdr, r)
@@ -46,7 +55,7 @@ class Session(object):
 
         assert hdr.sequence == 0
         # TODO crc
-        assert hdr.unk1 == 0
+        assert hdr.endpoint == 0
         assert hdr.unk2 == 0
         assert hdr.session == 0
 
@@ -78,14 +87,20 @@ class Session(object):
         self.log('client world hello with token {}', codecs.encode(token, 'hex'))
 
     def handle_server_hello(self, hdr, r):
-        unk1 = r.readformat('8s')
+        # appears to be "seconds since Asheron's Call epoch"
+        # where the epoch is approximately 1995-09-27 06:00 UTC
+        self.begin_time = r.readformat('d')
+        # the value the client should use in client_hello_reply
         token = r.readformat('8s')
-        unk = r.readformat('16s')
-        self.log('server hello with token {}', codecs.encode(token, 'hex'))
+        # the value the client should use for the endpoint header field
+        self.client_endpoint = r.readformat('H')
+        unk2 = r.readformat('14s')
+        self.log('server hello with token {}, unk2 {}', codecs.encode(token, 'hex'),
+            codecs.encode(unk2, 'hex'))
 
     def handle_client_hello_reply(self, hdr, r):
-        unk = r.readformat('8s')
-        self.log('client hello reply {}', codecs.encode(unk, 'hex'))
+        token = r.readformat('8s')
+        self.log('client hello reply with token {}', codecs.encode(token, 'hex'))
 
     def handle_pkt(self, hdr, r):
         if hdr.flags & 0x00000002:
@@ -117,21 +132,22 @@ class Session(object):
             hdr.flags &= ~0x00400000
 
         if hdr.flags & 0x01000000:
-            # appears to be "seconds since Asheron's Call epoch"
-            # where the epoch is approximately 1995-09-27 06:00 UTC
             time = r.readformat('d')
             self.log('  [01000000] time {}', time)
             hdr.flags &= ~0x01000000
+            assert time >= self.begin_time and time <= self.begin_time + 3600.0
 
         if hdr.flags & 0x02000000:
-            unk2 = r.readformat('4s')
-            self.log('  [02000000] {}', codecs.encode(unk2, 'hex'))
+            self.last_ping = r.readformat('f')
+            self.log('  [02000000] ping {:.2f}', self.last_ping)
             hdr.flags &= ~0x02000000
 
         if hdr.flags & 0x04000000:
-            unk3 = r.readformat('8s')
-            self.log('  [04000000] {}', codecs.encode(unk3, 'hex'))
+            ping_time = r.readformat('f')
+            ping_result = r.readformat('f') # a delta maybe?
+            self.log('  [04000000] pong {:.2f} {:.2f}', ping_time, ping_result)
             hdr.flags &= ~0x04000000
+            assert ping_time == self.last_ping
 
         if hdr.flags & 0x08000000:
             unk4 = r.readformat('6s')
