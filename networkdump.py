@@ -28,7 +28,7 @@ def read_record_header(f):
     ts_sec, ts_usec, incl_len, orig_len = struct.unpack(fmt, data)
     #print('{} {}'.format(ts_sec, ts_usec))
     assert incl_len == orig_len
-    return incl_len
+    return incl_len, ts_sec, ts_usec
 
 def handle_ip_header(r):
     version_ihl = r.readbyte()    
@@ -55,7 +55,7 @@ def handle_udp_header(r):
     assert length == len(r) + 8
     return srcport, dstport
 
-def handle_packet(linktype, data, sessions):
+def handle_packet(linktype, time, data, sessions):
     r = Reader(data)
 
     if linktype == 101: # LINKTYPE_RAW, no header!
@@ -97,24 +97,32 @@ def handle_packet(linktype, data, sessions):
     try:
         session = sessions[key]
     except KeyError:
-        session = Session(key)
+        session = Session(key, time)
         sessions[key] = session
 
     if srcip.is_private:
-        session.handle_client_pkt(r)
+        session.pkt_source = 'client'
     else:
-        session.handle_server_pkt(r)
+        session.pkt_source = 'server'
+    session.pkt_time = time
+    session.handle_pkt_major(r)
 
 def main():
     f = sys.stdin.buffer.raw
     sessions = {}
     linktype = read_file_header(f)
+    first_record = True
     while True:
         try:
-            size = read_record_header(f)
+            size, ts_sec, ts_usec = read_record_header(f)
         except EOFError:
             break
-        handle_packet(linktype, read_exact(f, size), sessions)
+        if first_record:
+            start_sec = ts_sec
+            start_usec = ts_usec
+            first_record = False
+        time = (ts_sec - start_sec) + (ts_usec - start_usec) / 1000000.0
+        handle_packet(linktype, time, read_exact(f, size), sessions)
 
 if __name__ == '__main__':
     main()

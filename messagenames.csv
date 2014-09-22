@@ -1,0 +1,53 @@
+0024,Destroy Object
+0197,Adjust Stack Size
+019E,Player Killed
+01E0,Indirect Text
+01E2,Emote Text
+02BB,Creature Message
+02BC,Creature Message (Ranged)
+02CD,Set Character DWORD
+02CE,Set Object DWORD
+02CF,Set Character QWORD
+02D1,Set Character Boolean
+02D2,Set Object Boolean
+02D6,Set Object String
+02D8,Set Object Resource
+02D9,Set Character Link
+02DA,Set Object Link
+02DB,Set Character Position
+02DD,Set Character Skill Level
+02E1,Set Character Skill State
+02E3,Set Character Attribute
+02E7,Set Character Vital
+02E9,Set Character Current Vital
+F619,Lifestone Materialize
+F625,Change Model
+F643,Char Creation Initilisation
+F653,End 3D Mode
+F655,Char Deletion
+F658,Character List
+F659,Character Login Failure
+F745,Create Object
+F746,Login Character
+F747,Remove Item
+F748,Set Position and Motion
+F749,Wield Object
+F74A,Move object into inventory.
+F74B,Toggle Object Visibility
+F74C,Animation
+F74E,Jumping
+F750,Apply Sound Effect
+F751,Enter Portal Mode
+F755,Apply Visual/Sound Effect
+F7B0,Game Event
+F7DB,Update Object
+F7DE,Turbine Chat
+F7DF,Start 3D Mode
+F7E0,Server Message
+F7E1,Server Name
+F7E2,Update Resource
+F7E7,Dat File Patch List
+F657,Request Login
+F7B1,Game Action
+F7C8,Enter Game
+F7DE,Turbine Chat
