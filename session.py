@@ -27,6 +27,7 @@ class Session(object):
    
     def handle_pkt_major(self, r):
         hdr = Header(r)
+        self.log('{}'.format(hdr))
         if hdr.flags == 0x00010000:
             self.handle_client_login_hello(hdr, r)
         elif hdr.flags == 0x00020000:
@@ -39,10 +40,6 @@ class Session(object):
             self.handle_pkt(hdr, r)
 
         assert len(r) == 0
-
-    def handle_server_transfer(self, hdr, r):
-        token, family, port, addr, zero, unk = r.readformat('!8sHHI8s8s')
-        self.log('server transfer {}:{} with token {}', ipaddress.ip_address(addr), port, codecs.encode(token, 'hex'))
 
     def handle_client_login_hello(self, hdr, r):
         self.log('client login hello')
@@ -91,10 +88,8 @@ class Session(object):
         self.log('client hello reply {}', codecs.encode(unk, 'hex'))
 
     def handle_pkt(self, hdr, r):
-        self.log('handle_pkt')
-
         if hdr.flags & 0x00000002:
-            self.log('  [00000002] connected')
+            #self.log('  [00000002] connected')
             hdr.flags &= ~0x00000002
 
         if hdr.flags & 0x00000100:
@@ -103,12 +98,13 @@ class Session(object):
             hdr.flags &= ~0x00000100
 
         if hdr.flags == 0x00000800:
-            self.handle_server_transfer(hdr, r)
+            token, family, port, addr, zero, unk6 = r.readformat('!8sHHI8s8s')
+            self.log('server transfer {}:{} with token {}', ipaddress.ip_address(addr), port, codecs.encode(token, 'hex'))
             hdr.flags &= ~0x00000800
 
         if hdr.flags & 0x00004000:
             sequence = r.readint()
-            self.log('  [00004000] ack sequence {}', sequence)
+            self.log('  [00004000] ack sequence {:x}', sequence)
             hdr.flags &= ~0x00004000
 
         if hdr.flags & 0x00008000:
@@ -121,8 +117,10 @@ class Session(object):
             hdr.flags &= ~0x00400000
 
         if hdr.flags & 0x01000000:
-            unk1 = r.readformat('8s')
-            self.log('  [01000000] {}', codecs.encode(unk1, 'hex'))
+            # appears to be "seconds since Asheron's Call epoch"
+            # where the epoch is approximately 1995-09-27 06:00 UTC
+            time = r.readformat('d')
+            self.log('  [01000000] time {}', time)
             hdr.flags &= ~0x01000000
 
         if hdr.flags & 0x02000000:
