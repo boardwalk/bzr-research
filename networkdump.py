@@ -2,8 +2,7 @@ import ipaddress
 import sys
 import struct
 from reader import Reader
-from loginsession import LoginSession
-from worldsession import WorldSession
+from session import Session
 
 def read_exact(f, size):
     data = bytearray()
@@ -21,12 +20,13 @@ def read_file_header(f):
     assert magic_num == 0xa1b2c3d4
     assert ver_major == 2
     assert ver_minor == 4
-    assert network == 101 # LINKTYPE_RAW
+    return network
 
 def read_record_header(f):
     fmt = 'IIII'
     data = read_exact(f, struct.calcsize(fmt))
     ts_sec, ts_usec, incl_len, orig_len = struct.unpack(fmt, data)
+    #print('{} {}'.format(ts_sec, ts_usec))
     assert incl_len == orig_len
     return incl_len
 
@@ -55,8 +55,32 @@ def handle_udp_header(r):
     assert length == len(r) + 8
     return srcport, dstport
 
-def handle_packet(data, sessions):
+def handle_packet(linktype, data, sessions):
     r = Reader(data)
+
+    if linktype == 101: # LINKTYPE_RAW, no header!
+        pass
+    elif linktype == 113: # LINKTYE_LINUX_SLL
+        pktype = r.readformat('!H')
+        reallinktype = r.readformat('!H')
+        linkaddrlen = r.readformat('!H')
+        linkaddr = r.readformat('8s')
+        prototype = r.readformat('!H')
+        assert reallinktype == 1 # ARPHRD_ETHER
+        assert linkaddrlen <= 8
+        assert prototype == 0x800 # EtherType IPv4
+
+        # 0 means 'sent to us'
+        # 4 means 'sent by us'
+        # we get two copies of each packet, one *before* NAT, and one *after*
+        # while picking 0 or 4 always will have either our local ip as the real client or the nat,
+        # depending on wheather the packet is incoming or outgoing
+        # we only key our session on server ip, not local ip
+        if pktype != 0:
+            return
+    else:
+        raise RuntimeError('unknown linktype')
+
     srcip, dstip = handle_ip_header(r)
     srcport, dstport = handle_udp_header(r)
 
@@ -73,28 +97,24 @@ def handle_packet(data, sessions):
     try:
         session = sessions[key]
     except KeyError:
-        if svrport < 9008:
-            session = LoginSession()
-        else:
-            session = WorldSession()
-
+        session = Session(key)
         sessions[key] = session
 
     if srcip.is_private:
-        session.handle_client(r)
+        session.handle_client_pkt(r)
     else:
-        session.handle_server(r)
+        session.handle_server_pkt(r)
 
 def main():
     f = sys.stdin.buffer.raw
     sessions = {}
-    read_file_header(f)
+    linktype = read_file_header(f)
     while True:
         try:
             size = read_record_header(f)
         except EOFError:
             break
-        handle_packet(read_exact(f, size), sessions)
+        handle_packet(linktype, read_exact(f, size), sessions)
 
 if __name__ == '__main__':
     main()
