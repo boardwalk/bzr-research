@@ -30,7 +30,7 @@ def checksumbuffer(data):
 
     shift = 24
     for i in range(len(data) & ~3, len(data)):
-        checksum = (checksum + data[i] << shift) & 0xFFFFFFFF
+        checksum = (checksum + (data[i] << shift)) & 0xFFFFFFFF
         shift -= 8
 
     return checksum
@@ -39,7 +39,8 @@ def checksumpacket(data):
     header = bytearray(data[:20])
     header[8:12] = b'\xDD\x70\xDD\xBA'
 
-    checksum = checksumbuffer(header) + checksumbuffer(data[20:])
+    checksum = checksumbuffer(header)
+    checksum = (checksum + checksumbuffer(data[20:])) & 0xFFFFFFFF
     checksum = (checksum + (len(data) << 16)) & 0xFFFFFFFF
     return checksum
 
@@ -81,9 +82,13 @@ class Session(object):
         print('{} {} {}'.format(self.name, self.pkt_source, fmt.format(*args, **kwargs)))
 
     def handle_pkt_major(self, r):
-        #self.log('calc checksum: {:08x}, size: {:04x}', checksumpacket(r.raw()), len(r.raw()))
+        calc_crc = checksumpacket(r.raw())
         hdr = Header(r)
         self.log('{}'.format(hdr))
+
+        if not (hdr.flags & 0x00000002):
+            assert calc_crc == hdr.crc
+
         if hdr.flags == 0x00010000:
             self.handle_client_login_hello(hdr, r)
         elif hdr.flags == 0x00020000:
