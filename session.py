@@ -111,6 +111,15 @@ class Session(object):
             self.log('  [00004000] ack sequence {}', sequence)
             hdr.flags &= ~0x00004000
 
+        if hdr.flags & 0x00008000:
+            self.log('  [00008000] disconnect')
+            hdr.flags &= ~0x00008000
+
+        if hdr.flags & 0x00400000:
+            unk5 = r.readformat('8s')
+            self.log('  [00400000] {}', codecs.encode(unk5, 'hex'))
+            hdr.flags &= ~0x00400000
+
         if hdr.flags & 0x01000000:
             unk1 = r.readformat('8s')
             self.log('  [01000000] {}', codecs.encode(unk1, 'hex'))

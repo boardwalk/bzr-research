@@ -74,7 +74,7 @@ def handle_packet(linktype, data, sessions):
         # 4 means 'sent by us'
         # we get two copies of each packet, one *before* NAT, and one *after*
         # while picking 0 or 4 always will have either our local ip as the real client or the nat,
-        # depending on wheather the packet is incoming or outgoing
+        # depending on whether the packet is incoming or outgoing
         # we only key our session on server ip, not local ip
         if pktype != 0:
             return
