@@ -16,11 +16,9 @@
 0013,PLAYER_DESCRIPTION
 0015,Communication_Talk
 0017,Social_RemoveFriend
-0017,WERROR_BAD_MOVEMENT
 0018,Social_AddFriend
 0019,Inventory_PutItemInContainer
 001a,Inventory_GetAndWieldItem
-001a,WERROR_CANNOT_SEND
 001b,Inventory_DropItem
 001c,WEENIE_ERROR
 001d,Allegiance_SwearAllegiance
