@@ -86,7 +86,8 @@ class Session(object):
         hdr = Header(r)
         self.log('{}'.format(hdr))
 
-        if not (hdr.flags & 0x00000002):
+        if not hdr.flags & 0x00000002:
+            # we can't check packets with encrypted checksums yet
             assert calc_checksum == hdr.checksum
 
         if hdr.flags == 0x00010000:
@@ -106,7 +107,6 @@ class Session(object):
         self.log('client login hello')
 
         assert hdr.sequence == 0
-        # TODO crc
         assert hdr.endpoint == 0
         assert hdr.time == 0
         assert hdr.session == 0
@@ -174,7 +174,7 @@ class Session(object):
             assert abs((hdr.time / 2.0) - (self.pkt_time - self.session_time)) < 2.0
 
         if hdr.flags & 0x00000002:
-            #self.log('  [00000002] connected')
+            #self.log('  [00000002] encrypted checksum')
             hdr.flags &= ~0x00000002
 
         if hdr.flags & 0x00000100:
@@ -208,6 +208,7 @@ class Session(object):
             hdr.flags &= ~0x00400000
 
         if hdr.flags & 0x01000000:
+            # used by the server to detect speed hacking
             time = r.readformat('d')
             #self.log('  [01000000] time {}', time)
             hdr.flags &= ~0x01000000
