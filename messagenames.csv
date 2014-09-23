@@ -7,7 +7,6 @@
 0008,Combat_TargetedMeleeAttack
 0009,OBJECT_STARTUP
 000a,Combat_TargetedMissileAttack
-000a,IR_SHOP
 000b,Combat_UntargetedMissileAttack
 000c,Admin_TeleportCharacterToMe
 000d,Admin_AdminCharDataByName

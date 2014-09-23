@@ -114,10 +114,9 @@ class Session(object):
         version = readstring(r)
         unk3 = r.readshort()
         unk4 = r.readshort()
-        unk5 = r.readshort()
+        unk5 = r.readint()
         unk6 = r.readshort()
         unk7 = r.readshort()
-        unk8 = r.readshort()
         unixtime = r.readint()
         accountname = readstring(r)
         unk9 = r.readint()
@@ -127,10 +126,8 @@ class Session(object):
         assert version == b'1802' # NetVersion
         assert unk3 == 0x0126
         assert unk4 == 0
-        assert unk5 == 2
-        assert unk6 == 0x4000
+        assert unk5 == 0x40000002 # GLSUserNameTicket_NetAuthType
         assert unk7 == 0
-        assert unk8 == 0
         assert unk9 == 0
         assert accountkeylen == 246
 
@@ -242,6 +239,12 @@ class Session(object):
                 fragmentCount = r.readshort()
                 fragmentLength = r.readshort()
                 fragmentIndex = r.readshort()
+
+                # I suspect flags here are these:
+                # 0001 npfChecksumEncrypted
+                # 0002 npfHasTimeSensitiveHeaders
+                # 0004 npfHasSequencedData
+                # 0008 npfHasHighPriorityHeaders
                 flags = r.readshort()
                 assert fragmentIndex < fragmentCount
                 assert flags >= 2 and flags <= 10
