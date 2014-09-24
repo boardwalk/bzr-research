@@ -277,8 +277,8 @@ class Session(object):
         # almost always zero
         unk = r.readint()
 
-        self.log('  [00040000] connect with token {:016x}, server seed {:08x}, client seed {:08x}',
-            token, serverseed, clientseed)
+        self.log('  [00040000] connect with token {:016x}, server seed {:08x}, client seed {:08x}, unk {:08x}',
+            token, serverseed, clientseed, unk)
 
     def handle_connect_reply(self, hdr, r):
         token = r.readformat('Q')
