@@ -40,6 +40,7 @@ uint32_t ChecksumXorGenerator::generate()
     if(counter_ == 0)
     {
         scramble();
+        counter_ = 256;
     }
 
     return xorTable_[--counter_];
