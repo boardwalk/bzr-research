@@ -45,11 +45,6 @@ def checksumheader(data):
     header[8:12] = b'\xDD\x70\xDD\xBA'
     return checksumdata(header, True)
 
-def checksumpacket(data):
-    checksum = checksumheader(data)
-    checksum = (checksum + checksumdata(data[20:], True)) & 0xFFFFFFFF
-    return checksum
-
 class Statistics(object):
     def __init__(self):
         self.messageinfos = {}
@@ -110,15 +105,15 @@ class Session(object):
             else:
                 self.calc_client_bytes += len(pkt_data)
 
-        if not hdr.flags & 0x00000002:
-            # we can't check packets with encrypted checksums yet
-            calc_checksum = checksumpacket(pkt_data)
-            assert calc_checksum == hdr.checksum
-        else:
+        if hdr.flags & 0x00000002:
             xor_generator = self.server_xor_generator if self.pkt_source == 'server' else self.client_xor_generator
-            calc_checksum = checksumheader(pkt_data) + (checksumdata(pkt_data[20:], True) ^ xor_generator(hdr.sequence)) & 0xFFFFFFFF
-            if calc_checksum != hdr.checksum:
-                self.log('======= FAIL ====== {:08x}', calc_checksum)
+            xor_val = xor_generator(hdr.sequence)
+        else:
+            xor_val = 0
+
+        calc_checksum = checksumheader(pkt_data) + (checksumdata(pkt_data[20:], True) ^ xor_val) & 0xFFFFFFFF
+        if calc_checksum != hdr.checksum:
+            self.log('======= FAIL ====== {:08x}', calc_checksum)
 
         if hdr.flags == 0x00010000:
             self.handle_client_login_hello(hdr, r)
@@ -323,6 +318,7 @@ class Session(object):
 
                 self.log('  [00000004] fragment {:08x}, {:08x}, {:04x}, {:04x}, {:04x}, {:04}'.format(
                     senderId, receiverId, fragmentCount, fragmentLength, fragmentIndex, flags))
+
                 if fragmentIndex == 0:
                     messageType = r.readint()
 
