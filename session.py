@@ -81,10 +81,8 @@ def checksumcontent(hdr, data):
             r.readshort()
             r.skip(frag_len - 16)
 
-            frag_header_checksum = checksumdata(data[frag_start : frag_start + 16], True)
-            frag_body_checksum = checksumdata(data[frag_start + 16 : frag_start + frag_len], True)
-            checksum = (checksum + frag_header_checksum) & 0xFFFFFFFF
-            checksum = (checksum + frag_body_checksum) & 0xFFFFFFFF
+            frag_checksum = checksumdata(data[frag_start : frag_start + frag_len], True)
+            checksum = (checksum + frag_checksum) & 0xFFFFFFFF
 
         return checksum
     else:
