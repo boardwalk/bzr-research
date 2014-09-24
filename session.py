@@ -69,12 +69,14 @@ class Statistics(object):
 
 stats = Statistics()
 
-CLIENT_COLOR = b'\x1b[31;1m'
-SERVER_COLOR = b'\x1b[32;1m'
+
+REVERSE_COLOR = b'\x1b[7m'
+POSITIVE_COLOR = b'\x1b[27m'
 RESET_COLOR = b'\x1b[0m'
 
 class Session(object):
-    def __init__(self, name, time):
+    def __init__(self, num, name, time):
+        self.num = num
         self.name = name
         self.pkt_source = '------'
         self.pkt_time = None
@@ -88,9 +90,21 @@ class Session(object):
         self.log('new session')
 
     def log(self, fmt, *args, **kwargs):
-        sys.stdout.buffer.write(SERVER_COLOR if self.pkt_source == 'server' else CLIENT_COLOR)
-        sys.stdout.buffer.write('{} {} {}\n'.format(self.name, self.pkt_source, fmt.format(*args, **kwargs)).encode('utf-8'))
-        sys.stdout.buffer.write(RESET_COLOR)
+        if self.num < 6:
+            color = b'\x1b' + '[{};1m'.format(31 + self.num).encode('utf-8')
+        else:
+            color= RESET_COLOR
+        sys.stdout.buffer.write(color)
+        sys.stdout.buffer.write(self.name.encode('utf-8'))
+        sys.stdout.buffer.write(b' ')
+        if self.pkt_source == 'server':
+            sys.stdout.buffer.write(REVERSE_COLOR)
+        sys.stdout.buffer.write(self.pkt_source.encode('utf-8'))
+        if self.pkt_source == 'server':
+            sys.stdout.buffer.write(POSITIVE_COLOR)
+        sys.stdout.buffer.write(b' ')
+        sys.stdout.buffer.write(fmt.format(*args, **kwargs).encode('utf-8'))
+        sys.stdout.buffer.write(b'\n')
 
     def handle_pkt_major(self, r):
 

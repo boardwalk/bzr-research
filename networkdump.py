@@ -97,7 +97,7 @@ def handle_packet(linktype, time, data, sessions):
     try:
         session = sessions[key]
     except KeyError:
-        session = Session(key, time)
+        session = Session(len(sessions), key, time)
         sessions[key] = session
 
     if srcip.is_private:

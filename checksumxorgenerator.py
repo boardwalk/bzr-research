@@ -2,7 +2,7 @@ from ctypes import *
 
 __all__ = ['ChecksumXorGenerator']
 
-lib = cdll.LoadLibrary('ChecksumXorGenerator.so')
+lib = cdll.LoadLibrary('./ChecksumXorGenerator.so')
 
 # c_void_p *does not work*
 # it seems to sign extend my pointers!
