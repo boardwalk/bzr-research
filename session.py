@@ -3,6 +3,7 @@ import codecs
 import struct
 import sys
 from header import Header
+from checksumxorgenerator import ChecksumXorGenerator
 
 messagenames = {}
 
@@ -90,7 +91,6 @@ class Session(object):
         self.calc_server_bytes = 0
         self.calc_client_bytes = 0
         self.log('new session')
-        self.xor_vals = {}
 
     def log(self, fmt, *args, **kwargs):
         sys.stdout.buffer.write(SERVER_COLOR if self.pkt_source == 'server' else CLIENT_COLOR)
@@ -115,17 +115,10 @@ class Session(object):
             calc_checksum = checksumpacket(pkt_data)
             assert calc_checksum == hdr.checksum
         else:
-            innerchecksum = (hdr.checksum - checksumheader(pkt_data)) & 0xFFFFFFFF
-            xor_val = innerchecksum ^ checksumdata(pkt_data[20:], True)
-            xor_val_key = "{}_{}".format(self.pkt_source, hdr.sequence)
-            try:
-                past_xor_val = self.xor_vals[xor_val_key]
-                self.log('comparing new xor_val {:08x} against {:08x}', xor_val, past_xor_val)
-                #if xor_val != past_xor_val:
-                #    self.log('======= FAIL ======')
-            except KeyError:
-                self.xor_vals[xor_val_key] = xor_val
-                self.log('new xor_val {:08x}', xor_val)
+            xor_generator = self.server_xor_generator if self.pkt_source == 'server' else self.client_xor_generator
+            calc_checksum = checksumheader(pkt_data) + (checksumdata(pkt_data[20:], True) ^ xor_generator(hdr.sequence)) & 0xFFFFFFFF
+            if calc_checksum != hdr.checksum:
+                self.log('======= FAIL ====== {:08x}', calc_checksum)
 
         if hdr.flags == 0x00010000:
             self.handle_client_login_hello(hdr, r)
@@ -192,11 +185,14 @@ class Session(object):
         serverseed = r.readint()
         clientseed = r.readint()
 
+        self.server_xor_generator = ChecksumXorGenerator(serverseed)
+        self.client_xor_generator = ChecksumXorGenerator(clientseed)
+
         # almost always zero
         unk = r.readint()
 
         self.log('server hello with token {}, server seed {:08x}, client seed {:08x}',
-            token, serverseed, clientseed)
+            codecs.encode(token, 'hex'), serverseed, clientseed)
 
     def handle_client_hello_reply(self, hdr, r):
         token = r.readformat('8s')
