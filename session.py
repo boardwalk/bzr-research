@@ -6,6 +6,36 @@ from header import Header
 from reader import Reader
 from checksumxorgenerator import ChecksumXorGenerator
 
+#0x00000100 <256,COnePrimHeader<256,96,CServerSwitchStruct> >
+#0x00000200 <512,COnePrimHeader<512,7,sockaddr_in> >
+#0x00000400 <1024,CEmptyHeader<1024,7> >
+#0x00000800 <2048,COnePrimHeader<2048,1073741922,CReferralStruct> >
+#0x00001000 <4096,CSeqIDListHeader<4096,33> >
+#0x00002000 <8192,CSeqIDListHeader<8192,33> >
+#0x00004000 <16384,COnePrimHeader<16384,1,unsigned long> >
+#0x00008000 <32768,CEmptyHeader<32768,3> >
+#0x00010000 <65536,CLogonHeader>
+#0x00020000 <131072,COnePrimHeader<131072,7,unsigned __int64> >
+#0x00040000 <262144,CConnectHeader>
+#0x00080000 <524288,COnePrimHeader<524288,536870919,unsigned __int64> >
+#0x00100000 <1048576,CPackObjHeader<NetError,1048576,7> >
+#0x00200000 <2097152,CPackObjHeader<NetError,2097152,2> >
+#0x00400000 <4194304,COnePrimHeader<4194304,7,CICMDCommandStruct> >
+#0x01000000 <16777216,CTimeSyncHeader>
+#0x02000000 <33554432,CEchoRequestHeader>
+#0x04000000 <67108864,CEchoResponseHeader>
+#0x08000000 <134217728,COnePrimHeader<134217728,16,CFlowStruct> >
+#
+#sym name: ohfDisposable has type -OptionalHeaderFlags has value 0001
+#sym name: ohfExclusive has type -OptionalHeaderFlags has value 0002
+#sym name: ohfNotConn has type -OptionalHeaderFlags has value 0004
+#sym name: ohfTimeSensitive has type -OptionalHeaderFlags has value 0008
+#sym name: ohfShouldPiggyBack has type -OptionalHeaderFlags has value 0010
+#sym name: ohfHighPriority has type -OptionalHeaderFlags has value 0020
+#sym name: ohfCountsAsTouch has type -OptionalHeaderFlags has value 0040
+#sym name: ohfEncrypted has type -OptionalHeaderFlags has value 20000000
+#sym name: ohfSigned has type -OptionalHeaderFlags has value 40000000
+
 messagenames = {}
 
 with open('messagenames.csv') as f:
@@ -174,20 +204,23 @@ class Session(object):
             self.log('======= FAIL ====== {:08x}', calc_checksum)
 
         if hdr.flags == 0x00010000:
-            self.handle_client_login_hello(hdr, r)
+            self.handle_logon(hdr, r)
         elif hdr.flags == 0x00020000:
-            self.handle_client_world_hello(hdr, r)
+            # uint64_t (7)
+            self.handle_referred(hdr, r)
         elif hdr.flags == 0x00040000:
-            self.handle_server_hello(hdr, r)
+            # CConnectHeader
+            self.handle_connect(hdr, r)
         elif hdr.flags == 0x00080000:
-            self.handle_client_hello_reply(hdr, r)
+            # uint64_t (20000007)
+            self.handle_connect_reply(hdr, r)
         else:
             self.handle_pkt(hdr, r)
 
         assert len(r) == 0
 
-    def handle_client_login_hello(self, hdr, r):
-        self.log('client login hello')
+    def handle_logon(self, hdr, r):
+        self.log('  [00010000] logon')
 
         assert hdr.sequence == 0
         assert hdr.endpoint == 0
@@ -214,11 +247,11 @@ class Session(object):
         assert unk9 == 0
         assert accountkeylen == 246
 
-    def handle_client_world_hello(self, hdr, r):
-        token = r.readformat('8s')
-        self.log('client world hello with token {}', codecs.encode(token, 'hex'))
+    def handle_referred(self, hdr, r):
+        token = r.readformat('Q')
+        self.log('  [00020000] referred with token {:016x}', token)
 
-    def handle_server_hello(self, hdr, r):
+    def handle_connect(self, hdr, r):
         self.server_endpoint = hdr.endpoint
         self.session = hdr.session
 
@@ -227,7 +260,7 @@ class Session(object):
         self.begin_time = r.readformat('d')
 
         # the value the client should use in client_hello_reply
-        token = r.readformat('8s')
+        token = r.readformat('Q')
 
         # the value the client should use for the endpoint header field
         self.client_endpoint = r.readformat('H')
@@ -244,12 +277,12 @@ class Session(object):
         # almost always zero
         unk = r.readint()
 
-        self.log('server hello with token {}, server seed {:08x}, client seed {:08x}',
-            codecs.encode(token, 'hex'), serverseed, clientseed)
+        self.log('  [00040000] connect with token {:016x}, server seed {:08x}, client seed {:08x}',
+            token, serverseed, clientseed)
 
-    def handle_client_hello_reply(self, hdr, r):
-        token = r.readformat('8s')
-        self.log('client hello reply with token {}', codecs.encode(token, 'hex'))
+    def handle_connect_reply(self, hdr, r):
+        token = r.readformat('Q')
+        self.log('  [00080000] connect reply with token {:016x}', token)
 
     def handle_pkt(self, hdr, r):
         #assert hdr.session == self.session
@@ -273,22 +306,33 @@ class Session(object):
             hdr.flags &= ~0x00000002
 
         if hdr.flags & 0x00000100:
+            # CServerSwitchStruct
             unk0 = r.readformat('8s')
-            self.log('  [00000100] {}', codecs.encode(unk0, 'hex'))
+            self.log('  [00000100] server switch {}', codecs.encode(unk0, 'hex'))
             hdr.flags &= ~0x00000100
 
+        if hdr.flags & 0x00000200:
+            # sockaddr_in (7)
+            assert False
+
+        if hdr.flags & 0x00000400:
+            # EmptyHeader (7)
+            assert False
+
         if hdr.flags == 0x00000800:
-            token, family, port, addr, zero, unk6 = r.readformat('8sHHI8s8s')
+            # CReferralStruct
+            token, family, port, addr, zero, unk6 = r.readformat('QHHI8s8s')
             port = bswapword(port)
             addr = bswapdword(addr)
             assert family == 2 # AF_INET
             assert port >= 9000 and port <= 9014
             assert zero == b'\0\0\0\0\0\0\0\0'
-            self.log('server transfer {}:{} with token {}, unk {}', ipaddress.ip_address(addr), port,
-                    codecs.encode(token, 'hex'), codecs.encode(unk6, 'hex'))
+            self.log('  [00000800] server referral {}:{} with token {:016x}, unk {}', ipaddress.ip_address(addr), port,
+                    token, codecs.encode(unk6, 'hex'))
             hdr.flags &= ~0x00000800
 
-        if hdr.flags & 0x00001000:
+        if hdr.flags & 0x0001000:
+            # SeqIDList (33)
             numsequences = r.readint()
             sequences = [r.readint() for i in range(numsequences)]
             sequences = ' '.join(['{:x}'.format(s) for s in sequences])
@@ -296,6 +340,7 @@ class Session(object):
             hdr.flags &= ~0x00001000
 
         if hdr.flags & 0x00002000:
+            # SeqIDList (33)
             # i think this happens when a packet is no longer relevant
             # (a position has since been updated at a higher sequence f.e.)
             numsequences = r.readint()
@@ -305,22 +350,33 @@ class Session(object):
             hdr.flags &= ~0x00002000
 
         if hdr.flags & 0x00004000:
+            # unsigned long (1)
             sequence = r.readint()
             self.log('  [00004000] ack sequence {:x}', sequence)
             hdr.flags &= ~0x00004000
 
         if hdr.flags & 0x00008000:
+            # EmptyHeader (3)
             self.log('  [00008000] disconnect')
             hdr.flags &= ~0x00008000
 
+        if hdr.flags & 0x00100000:
+            # PackObjHeader<NetError> (7)
+            assert False
+
+        if hdr.flags & 0x00200000:
+            # PackObjHeader<NetError> (2)
+            assert False
+
         if hdr.flags & 0x00400000:
+            # CICMDCommandStruct (7)
+            # CI "character info"?
             unk5 = r.readformat('8s')
-            # i've only seen this once, in packetloss2.pcap
-            # i really haven't a client what it is...
             self.log('  [00400000] {} ==================', codecs.encode(unk5, 'hex'))
             hdr.flags &= ~0x00400000
 
         if hdr.flags & 0x01000000:
+            # CTimeSyncHeader
             # used by the server to detect speed hacking
             time = r.readformat('d')
             self.log('  [01000000] time {}', time)
@@ -330,6 +386,7 @@ class Session(object):
             assert abs(actual_time - calc_time) < 1.0
 
         if hdr.flags & 0x02000000:
+            # CEchoRequestHeader
             # Ping time is based in the overall time the client started, not a particular session!
             self.last_ping = r.readformat('f')
             self.log('  [02000000] ping {:.2f}', self.last_ping)
@@ -337,6 +394,7 @@ class Session(object):
             assert abs(self.last_ping - self.pkt_time) < 1.0
 
         if hdr.flags & 0x04000000:
+            # EchoResponseHeader
             ping_time = r.readformat('f')
             ping_result = r.readformat('f') # a delta maybe?
             self.log('  [04000000] pong {:.2f} {:.2f}', ping_time, ping_result)
@@ -345,6 +403,7 @@ class Session(object):
             #assert ping_time == self.last_ping
 
         if hdr.flags & 0x08000000:
+            # CFlowStruct
             # this bit essentially says "up to your packet with time t i've seen n bytes (since the last time I send this)"
             numbytes = r.readint()
             time = r.readshort()
