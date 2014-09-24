@@ -37,13 +37,19 @@ ChecksumXorGenerator::ChecksumXorGenerator(uint32_t seed)
 
 uint32_t ChecksumXorGenerator::generate()
 {
-    if(counter_ == 0)
+    uint32_t value = xorTable_[counter_];
+
+    if(counter_ > 0)
+    {
+        counter_--;
+    }
+    else
     {
         scramble();
-        counter_ = 256;
+        counter_ = 255;
     }
 
-    return xorTable_[--counter_];
+    return value;
 }
 
 void ChecksumXorGenerator::initTables()
@@ -90,8 +96,8 @@ void ChecksumXorGenerator::initTables()
         }
     }
 
-    counter_ = 256;
     scramble();
+    counter_ = 255;
 }
 
 void ChecksumXorGenerator::initMix(uint32_t* xorvals)
@@ -143,6 +149,9 @@ void ChecksumXorGenerator::scramble()
         scrambleRound(key0 << 0x02, &key0, &key2, &local_unk, &lc_unk0, &lc_unk200, &local_xor, &var_18, &var_1c);
         scrambleRound(key0 >> 0x10, &key0, &key2, &local_unk, &lc_unk0, &lc_unk200, &local_xor, &var_18, &var_1c);
     }
+
+    value1_ = key2;
+    value0_ = key0;
 }
 
 void ChecksumXorGenerator::scrambleRound(

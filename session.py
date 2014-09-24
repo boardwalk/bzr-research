@@ -3,6 +3,7 @@ import codecs
 import struct
 import sys
 from header import Header
+from reader import Reader
 from checksumxorgenerator import ChecksumXorGenerator
 
 messagenames = {}
@@ -41,9 +42,53 @@ def checksumdata(data, includesize):
     return checksum
 
 def checksumheader(data):
-    header = data[: 20]
+    header = data[:20]
     header[8:12] = b'\xDD\x70\xDD\xBA'
     return checksumdata(header, True)
+
+def checksumcontent(hdr, data):
+    if hdr.flags & 0x00000004:
+        r = Reader(data)
+        if hdr.flags & 0x00000100:
+            r.skip(8)
+        if hdr.flags & 0x00001000:
+            nseq = r.readint()
+            r.skip(nseq * 4)
+        if hdr.flags & 0x00002000:
+            nseq = r.readint()
+            r.skip(nseq * 4)
+        if hdr.flags & 0x00004000:
+            r.skip(4)
+        if hdr.flags & 0x00400000:
+            r.skip(8)
+        if hdr.flags & 0x01000000:
+            r.skip(8)
+        if hdr.flags & 0x02000000:
+            r.skip(4)
+        if hdr.flags & 0x04000000:
+            r.skip(8)
+        if hdr.flags & 0x08000000:
+            r.skip(6)
+        checksum = checksumdata(data[0 : r.position], True)
+
+        while len(r):
+            frag_start = r.position
+            r.readint()
+            r.readint()
+            r.readshort()
+            frag_len = r.readshort()
+            r.readshort()
+            r.readshort()
+            r.skip(frag_len - 16)
+
+            frag_header_checksum = checksumdata(data[frag_start : frag_start + 16], True)
+            frag_body_checksum = checksumdata(data[frag_start + 16 : frag_start + frag_len], True)
+            checksum = (checksum + frag_header_checksum) & 0xFFFFFFFF
+            checksum = (checksum + frag_body_checksum) & 0xFFFFFFFF
+
+        return checksum
+    else:
+        return checksumdata(data, True)
 
 class Statistics(object):
     def __init__(self):
@@ -66,6 +111,7 @@ class Statistics(object):
     def __del__(self):
         for messagetype, messageinfo in self.messageinfos.items():
             print('{:08x}: {} {} {} {}'.format(messagetype, messagenames.get(messagetype, 'Unknown'), messageinfo['sources'], messageinfo['flags'], messageinfo['count']))
+
 
 stats = Statistics()
 
@@ -125,7 +171,7 @@ class Session(object):
         else:
             xor_val = 0
 
-        calc_checksum = checksumheader(pkt_data) + (checksumdata(pkt_data[20:], True) ^ xor_val) & 0xFFFFFFFF
+        calc_checksum = checksumheader(pkt_data) + (checksumcontent(hdr, pkt_data[20:]) ^ xor_val) & 0xFFFFFFFF
         if calc_checksum != hdr.checksum:
             self.log('======= FAIL ====== {:08x}', calc_checksum)
 
