@@ -166,9 +166,7 @@ class Session(object):
     def log(self, fmt, *args, **kwargs):
         if self.num < 6:
             color = b'\x1b' + '[{};1m'.format(31 + self.num).encode('utf-8')
-        else:
-            color= RESET_COLOR
-        sys.stdout.buffer.write(color)
+            sys.stdout.buffer.write(color)
         sys.stdout.buffer.write(self.name.encode('utf-8'))
         sys.stdout.buffer.write(b' ')
         if self.pkt_source == 'server':
@@ -178,6 +176,7 @@ class Session(object):
             sys.stdout.buffer.write(POSITIVE_COLOR)
         sys.stdout.buffer.write(b' ')
         sys.stdout.buffer.write(fmt.format(*args, **kwargs).encode('utf-8'))
+        sys.stdout.buffer.write(RESET_COLOR)
         sys.stdout.buffer.write(b'\n')
 
     def handle_pkt_major(self, r):
