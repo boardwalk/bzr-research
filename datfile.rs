@@ -140,6 +140,10 @@ impl DatFile {
             f(id, loc, size);
         }
 
+        if words[0] != 0 {
+            try!(self.inner_iterate_files(words[num_files] as i64, |id, loc, size| f(id, loc, size)));
+        }
+
         Ok(())
     }
 }

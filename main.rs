@@ -31,8 +31,8 @@ fn main() {
         return;
     }
 
-    let datfile = args[1].as_slice();
-    let action = args[2].as_slice();
+    let datfile = args.get(1).as_slice();
+    let action = args.get(2).as_slice();
 
     if action == "ls" {
         match ls_datfile(datfile) {
@@ -45,7 +45,7 @@ fn main() {
             print_usage();
             return;
         }
-        let id = args[3].as_slice();
+        let id = args.get(3).as_slice();
         let num_id = match from_str_radix::<u32>(id, 16) {
             Some(e) => e,
             None => { print_usage(); return }

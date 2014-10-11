@@ -3,6 +3,7 @@ import sys
 import struct
 from reader import Reader
 from session import Session
+from glssession import GLSSession
 
 def read_exact(f, size):
     data = bytearray()
@@ -97,7 +98,10 @@ def handle_packet(linktype, time, data, sessions):
     try:
         session = sessions[key]
     except KeyError:
-        session = Session(len(sessions), key, time)
+        if svrport == 5002:
+            session = GLSSession(key)
+        else:
+            session = Session(len(sessions), key, time)
         sessions[key] = session
 
     if srcip.is_private:

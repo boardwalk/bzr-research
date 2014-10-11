@@ -6,5 +6,5 @@ $TOOL $DATFILE ls \
     | grep -E '^0e' \
     | cut -f 1 -d ' ' \
     | xargs -n 1 \
-    sh dump-string-table-inner.sh
+    sh dump-unique-inner.sh
 

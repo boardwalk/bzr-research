@@ -2,7 +2,7 @@ import ipaddress
 import codecs
 import struct
 import sys
-from header import Header
+from header import Header, FragmentHeader
 from reader import Reader
 from checksumxorgenerator import ChecksumXorGenerator
 
@@ -35,6 +35,25 @@ from checksumxorgenerator import ChecksumXorGenerator
 #sym name: ohfCountsAsTouch has type -OptionalHeaderFlags has value 0040
 #sym name: ohfEncrypted has type -OptionalHeaderFlags has value 20000000
 #sym name: ohfSigned has type -OptionalHeaderFlags has value 40000000
+
+# 0001 npfChecksumEncrypted
+# 0002 npfHasTimeSensitiveHeaders
+# 0004 npfHasSequencedData
+# 0008 npfHasHighPriorityHeaders
+
+#0000 NET_QUEUE_INVALID
+#0001 NET_QUEUE_EVENT
+#0002 NET_QUEUE_CONTROL
+#0003 NET_QUEUE_WEENIE
+#0004 NET_QUEUE_LOGON
+#0005 NET_QUEUE_DATABASE
+#0006 NET_QUEUE_SECURECONTROL
+#0007 NET_QUEUE_SECUREWEENIE
+#0008 NET_QUEUE_SECURELOGON
+#0009 NET_QUEUE_UI
+#000a NET_QUEUE_SMARTBOX
+#000b NET_QUEUE_OBSERVER
+#000c NET_QUEUE_MAX
 
 messagenames = {}
 
@@ -103,8 +122,7 @@ def checksumcontent(hdr, data):
 
         while len(r):
             frag_start = r.position
-            r.readint()
-            r.readint()
+            r.readformat('Q')
             r.readshort()
             frag_len = r.readshort()
             r.readshort()
@@ -219,77 +237,72 @@ class Session(object):
         assert len(r) == 0
 
     def handle_logon(self, hdr, r):
-        self.log('  [00010000] logon')
-
         assert hdr.sequence == 0
-        assert hdr.endpoint == 0
+        assert hdr.netid == 0
         assert hdr.time == 0
         assert hdr.session == 0
 
         version = readstring(r)
-        unk3 = r.readshort()
-        unk4 = r.readshort()
-        unk5 = r.readint()
+        authDataLen = r.readint()
+        assert len(r) == authDataLen
+        authDataType = r.readint()
         unk6 = r.readshort()
         unk7 = r.readshort()
         unixtime = r.readint()
         accountname = readstring(r)
         unk9 = r.readint()
-        accountkeylen = r.readint()
-        accountkey = r.readformat('{}s'.format(accountkeylen))
+        ticketlen = r.readint()
+        ticket = r.readformat('{}s'.format(ticketlen))
 
         assert version == b'1802' # NetVersion
-        assert unk3 == 0x0126
-        assert unk4 == 0
-        assert unk5 == 0x40000002 # GLSUserNameTicket_NetAuthType
+        assert authDataType == 0x40000002 # GLSUserNameTicket_NetAuthType
+        assert unk6 == 0
         assert unk7 == 0
         assert unk9 == 0
-        assert accountkeylen == 246
+        assert ticketlen == 246
 
-    def handle_referred(self, hdr, r):
-        token = r.readformat('Q')
-        self.log('  [00020000] referred with token {:016x}', token)
+        self.log('  [00010000] logon {}'.format(accountname))
+
+    def handsddssdde_referred(self, hdr, r):
+        cookie = r.readformat('Q')
+        self.log('  [00020000] referred with cookie {:016x}', cookie)
 
     def handle_connect(self, hdr, r):
-        self.server_endpoint = hdr.endpoint
+        self.server_netid = hdr.netid
         self.session = hdr.session
 
         # appears to be "seconds since Asheron's Call epoch"
         # where the epoch is approximately 1995-09-27 06:00 UTC
         self.begin_time = r.readformat('d')
 
-        # the value the client should use in client_hello_reply
-        token = r.readformat('Q')
+        # the value the client should use in connect_reply
+        cookie = r.readformat('Q')
 
-        # the value the client should use for the endpoint header field
-        self.client_endpoint = r.readformat('H')
+        # the value the client should use for the netid header field
+        self.client_netid = r.readformat('I')
 
-        # might just be padding for the previous
-        r.readformat('H')
+        outgoingseed = r.readint()
+        incomingseed = r.readint()
 
-        serverseed = r.readint()
-        clientseed = r.readint()
+        # padding
+        r.readint()
 
-        self.server_xor_generator = ChecksumXorGenerator(serverseed)
-        self.client_xor_generator = ChecksumXorGenerator(clientseed)
+        self.server_xor_generator = ChecksumXorGenerator(outgoingseed)
+        self.client_xor_generator = ChecksumXorGenerator(incomingseed)
 
-        # almost always zero
-        unk = r.readint()
-
-        self.log('  [00040000] connect with token {:016x}, server seed {:08x}, client seed {:08x}, unk {:08x}',
-            token, serverseed, clientseed, unk)
+        self.log('  [00040000] connect with cookie {:016x}', cookie)
 
     def handle_connect_reply(self, hdr, r):
-        token = r.readformat('Q')
-        self.log('  [00080000] connect reply with token {:016x}', token)
+        cookie = r.readformat('Q')
+        self.log('  [00080000] connect reply with cookie {:016x}', cookie)
 
     def handle_pkt(self, hdr, r):
         #assert hdr.session == self.session
 
         #if self.pkt_source == 'client':
-        #    assert hdr.endpoint == self.client_endpoint
+        #    assert hdr.netid == self.client_netid
         #else:
-        #    assert hdr.endpoint == self.server_endpoint
+        #    assert hdr.netid == self.server_netid
 
         if not hdr.flags & 0x00008000:
             # disconnect has hdr.time set to 0
@@ -306,8 +319,9 @@ class Session(object):
 
         if hdr.flags & 0x00000100:
             # CServerSwitchStruct
-            unk0 = r.readformat('8s')
-            self.log('  [00000100] server switch {}', codecs.encode(unk0, 'hex'))
+            sequence = r.readint()
+            type_ = r.readint()
+            self.log('  [00000100] server switch {:08x} {:08x}', sequence, type_)
             hdr.flags &= ~0x00000100
 
         if hdr.flags & 0x00000200:
@@ -320,14 +334,18 @@ class Session(object):
 
         if hdr.flags == 0x00000800:
             # CReferralStruct
-            token, family, port, addr, zero, unk6 = r.readformat('QHHI8s8s')
+            #   __int64 qwCookie
+            #   sockaddr_in Addr
+            #   short idServer
+            #   short padding
+            cookie, family, port, addr, zero, serverId, pad = r.readformat('QHHI8sH6s')
             port = bswapword(port)
             addr = bswapdword(addr)
             assert family == 2 # AF_INET
             assert port >= 9000 and port <= 9014
             assert zero == b'\0\0\0\0\0\0\0\0'
-            self.log('  [00000800] server referral {}:{} with token {:016x}, unk {}', ipaddress.ip_address(addr), port,
-                    token, codecs.encode(unk6, 'hex'))
+            self.log('  [00000800] server referral {}:{} with cookie {:016x}, serverId {:04x}', ipaddress.ip_address(addr), port,
+                    cookie, serverId)
             hdr.flags &= ~0x00000800
 
         if hdr.flags & 0x0001000:
@@ -370,6 +388,8 @@ class Session(object):
         if hdr.flags & 0x00400000:
             # CICMDCommandStruct (7)
             # CI "character info"?
+            #  int Cmd (1 = cmdNOP?)
+            #  int Param
             unk5 = r.readformat('8s')
             self.log('  [00400000] {} ==================', codecs.encode(unk5, 'hex'))
             hdr.flags &= ~0x00400000
@@ -386,6 +406,7 @@ class Session(object):
 
         if hdr.flags & 0x02000000:
             # CEchoRequestHeader
+            #  float LocalTime
             # Ping time is based in the overall time the client started, not a particular session!
             self.last_ping = r.readformat('f')
             self.log('  [02000000] ping {:.2f}', self.last_ping)
@@ -393,7 +414,9 @@ class Session(object):
             assert abs(self.last_ping - self.pkt_time) < 1.0
 
         if hdr.flags & 0x04000000:
-            # EchoResponseHeader
+            # CEchoResponseHeader
+            #  float LocalTime
+            #  float HoldingTime
             ping_time = r.readformat('f')
             ping_result = r.readformat('f') # a delta maybe?
             self.log('  [04000000] pong {:.2f} {:.2f}', ping_time, ping_result)
@@ -403,10 +426,12 @@ class Session(object):
 
         if hdr.flags & 0x08000000:
             # CFlowStruct
+            #  cbDataRecvd
+            #  interval
             # this bit essentially says "up to your packet with time t i've seen n bytes (since the last time I send this)"
             numbytes = r.readint()
             time = r.readshort()
-            self.log('  [08000000] ack {:08x} bytes on or before time {:04x}', numbytes, time)
+            self.log('  [08000000] ack {:x} bytes on or before time {:x}', numbytes, time)
             hdr.flags &= ~0x08000000
             if self.pkt_source == 'server':
                 self.client_bytes += numbytes
@@ -417,25 +442,10 @@ class Session(object):
 
         if hdr.flags & 0x00000004:
             while len(r):
-                senderId = r.readint()
-                receiverId = r.readint()
-                fragmentCount = r.readshort()
-                fragmentLength = r.readshort()
-                fragmentIndex = r.readshort()
+                fraghdr = FragmentHeader(r)
+                self.log('  [00000004] {}'.format(fraghdr))
 
-                # I suspect flags here are these:
-                # 0001 npfChecksumEncrypted
-                # 0002 npfHasTimeSensitiveHeaders
-                # 0004 npfHasSequencedData
-                # 0008 npfHasHighPriorityHeaders
-                flags = r.readshort()
-                assert fragmentIndex < fragmentCount
-                assert flags >= 2 and flags <= 10
-
-                self.log('  [00000004] fragment {:08x}, {:08x}, {:04x}, {:04x}, {:04x}, {:04}'.format(
-                    senderId, receiverId, fragmentCount, fragmentLength, fragmentIndex, flags))
-
-                if fragmentIndex == 0:
+                if fraghdr.fragmentIndex == 0:
                     messageType = r.readint()
 
                     if messageType == 0xF7B0:
@@ -444,18 +454,18 @@ class Session(object):
                         submessageType = r.readint()
                         self.log('  [00000004] message WEENIE_ORDERED {:04x} {}',
                             submessageType, messagenames.get(submessageType, 'Unknown'))
-                        r.skip(fragmentLength - 32)
+                        r.skip(fraghdr.fragmentLength - 32)
                     elif messageType == 0xF7B1:
                         r.readint() # sequence
                         submessageType = r.readint()
                         self.log('  [00000004] message ORDERED {:04x} {}',
                             submessageType, messagenames.get(submessageType, 'Unknown'))
-                        r.skip(fragmentLength - 28)
+                        r.skip(fraghdr.fragmentLength - 28)
                     else:
                         self.log('  [00000004] message {:04x} {}',
                             messageType, messagenames.get(messageType, 'Unknown'))
-                        r.skip(fragmentLength - 20)
-                    stats.log(messageType, self.pkt_source, flags)
+                        r.skip(fraghdr.fragmentLength - 20)
+                    stats.log(messageType, self.pkt_source, fraghdr.queueId)
                 else:
                     r.skip(fragmentLength - 16)
             hdr.flags &= ~0x00000004

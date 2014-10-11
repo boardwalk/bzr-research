@@ -7,10 +7,11 @@ r = Reader(sys.stdin.buffer.raw.read())
 
 flags = r.readint()
 
-print("{} {:08x}".format(sys.argv[1], flags))
+#print("{} {:08x}".format(sys.argv[1], flags))
 
 if flags & 0x01:
     thingie = r.readint()
+    print('thingie = {:08x}'.format(thingie))
     #print('thingie = {:08x}'.format(thingie))
 
 if flags & 0x02 or flags & 0x04:

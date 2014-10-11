@@ -38,11 +38,11 @@ rw, rx, ry, rz = r.readformat('ffff')
 #print('rw={}, rx={}, ry={}, rz={}'.format(rw, rx, ry, rz))
 
 for i in range(numConnections):
-    r.readshort()
-    r.readshort()
+    a = r.readshort()
+    b = r.readshort()
     structId = r.readshort()
-    r.readshort()
-    #print('connection {}: {:04x}'.format(i, structId))
+    c = r.readshort()
+    #print('connection {}: {:04x} {:04x} {:04x} {:04x}'.format(i, a, b, structId, c))
 
 for i in range(numVisible):
     structId = r.readshort()
@@ -62,7 +62,8 @@ if flags & 2:
 
 
 if flags & 8:
-    r.readint()
+    a = r.readint()
+    print('restriction obj: {:08x}'.format(a))
 
 #r.dump()
 assert len(r) == 0

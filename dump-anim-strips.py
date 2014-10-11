@@ -5,8 +5,6 @@ from reader import Reader
 r = Reader(sys.stdin.buffer.raw.read())
 
 def parse_anim(r):
-    iden = r.readshort()
-    stance = r.readshort()
     numanims = r.readbyte()
     d = r.readbyte()
     e = r.readbyte()
@@ -41,33 +39,50 @@ assert fid & 0xFF000000 == 0x09000000
 print('=== fid = {:08x}'.format(fid))
 
 unk1 = r.readint()
-count1 = r.readint()
+#print('default style = {:08x}'.format(unk1))
+styleCount = r.readint()
 
-for i in range(count1):
-    r.readint()
-    r.readint()
+for i in range(styleCount):
+    k = r.readint()
+    v = r.readint()
+    #print('k = {:08x} v = {:08x}'.format(k, v))
 
-count2 = r.readint()
+cycleCount = r.readint()
+cycleKeys = {}
 
-#print("Strips 1: {}".format(count2))
+#print("Strips 1: {}".format(cycleCount))
 
-for i in range(count2):
+for i in range(cycleCount):
+    key = r.readint()
+    #print("cycle {:08x}".format(key))
+    assert key not in cycleKeys
+    cycleKeys[key] = True
+
     parse_anim(r)
 
-count3 = r.readint()
+modifierCount = r.readint()
+modifierKeys = {}
 
-#print("Strips 2: {}".format(count3))
+#print("Strips 2: {}".format(modifierCount))
 
-for i in range(count3):
+for i in range(modifierCount):
+    key = r.readint()
+    #print("modifier {:08x}".format(key))
+    assert key not in modifierKeys
+    modifierKeys[key] = True
+
     parse_anim(r)
 
-count4 = r.readint()
+linkCount = r.readint()
 
-for i in range(count4):
-    unk = r.readint()
+for i in range(linkCount):
+    cycleKey = r.readint()
+    print("link cycle key {:08x}".format(cycleKey))
+
     count5 = r.readint()
     #print("Combo strip: {}, unk = {:x}".format(i, unk))
     for j in range(count5):
+        target = r.readint()
         parse_anim(r)
 
 assert len(r) == 0

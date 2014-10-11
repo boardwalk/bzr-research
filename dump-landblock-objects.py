@@ -8,69 +8,66 @@ r = Reader(sys.stdin.buffer.raw.read())
 fid = r.readint()
 assert fid & 0x0000FFFF == 0x0000FFFE
 
-unk = r.readint()
+numCells = r.readint()
 
-numObjects = r.readint()
+numObjects = r.readshort()
+r.readshort()
 
 for i in range(numObjects):
     modelId = r.readint()
     x, y, z = r.readformat('3f')
     assert x >= 0.0 and x <= 192.0
     assert y >= 0.0 and y <= 192.0
-    assert z >= 0.0 and z <= 512.0
+    #assert z >= 0.0 and z <= 512.0
     rw, rx, ry, rz = r.readformat('4f')
 
-numObjectsEx = r.readint()
+numBuildings = r.readshort()
+hasthings = r.readshort()
 
-print("working on {:08x}, numobjectsex={}".format(fid, numObjectsEx))
+#print('fid = {:08x} numBuildings = {} thing = {}'.format(fid, numBuildings, thing))
 
-r.dump(2048)
-
-for i in range(numObjectsEx):
+for i in range(numBuildings):
     modelId = r.readint()
-    print("{}, {:08x}".format(i, modelId))
-    #if i == 1:
-    #    r.dump(1024)
-    assert modelId & 0xFFFF0000 == 0x01000000
     x, y, z = r.readformat('3f')
     assert x >= 0.0 and x <= 192.0
     assert y >= 0.0 and y <= 192.0
-    assert z >= 0.0 and z <= 192.0
+    #assert z >= 0.0 and z <= 512.0
     rw, rx, ry, rz = r.readformat('4f')
     assert rw >= -1.0 and rw <= 1.0
     assert rx >= -1.0 and rx <= 1.0
     assert ry >= -1.0 and ry <= 1.0
     assert rz >= -1.0 and rz <= 1.0
-    unks = r.readformat('4B')
-    #if unks[0] == 216:
-    #    bytesperchunk = 4 * 4
-    #elif unks[0] == 235:
-    #    bytesperchunk = 5 * 4
-    #elif unks[0] == 32:
-    #    bytesperchunk = 7 * 4
-    #elif unks[0] == 127:
-    #    bytesperchunk = 12 * 4
-    #else:
-    #    bytesperchunk = 3 * 4
-    #assert unks[2] == 0
-    #assert unks[3] == 0
-    numChunks = r.readint()
-    print("reading {} chunks".format(numChunks))
+    numLeaves = r.readint()
+    numPortals = r.readint()
+    #print('    {} numLeaves = 0x{:08x} numPortals = {}'.format(i, numLeaves, numPortals))
+    for j in range(numPortals):
+        portalSide = r.readshort()
+        otherCellId = r.readshort()
+        otherPortalId = r.readshort()
+        numStabs = r.readshort()
+        #print('        {} portalSide = {} otherCellId = {} otherPortalId = {} numStabs = {}'
+        #        .format(j, portalSide, otherCellId, otherPortalId, numStabs))
+        for k in range(numStabs):
+            stab = r.readshort()
+            #print('            {} stab = {}'.format(k, stab))
 
-    for j in range(numChunks):
-        print("chunk {}".format(j))
-        three = r.readshort()
-        #print("three: {}".format(three))
-        assert three == 3 or three == 2
-        r.readshort()
-        r.readshort()
-        r.readshort()
-        while r.readshort() != 0:
-            print(" ...")
-            pass
+        r.align()
 
-    #print("numchunks {}, bytesperchunk {}, unks {}, {}, {}, {}".format(numchunks, bytesperchunk, *unks))
+print('fid = {:08x} remaining = {}'.format(fid, len(r)))
 
-#print("numObjectsEx: {}".format(numObjectsEx))
+if hasthings:
+    numthings = r.readshort()
+    unk = r.readshort()
+    assert unk == 8
+    for i in range(numthings):
+        x = r.readint()
+        y = r.readint()
+        print('  {:08x} {:08x}'.format(x, y))
+        if x != 0:
+            assert (fid >> 16) == (x >> 16) # matched landblock ids?
+            assert (y >> 28) == 0x7
+            assert (fid >> 16) == ((y >> 12) & 0xFFFF)
+            #assert (x & 0xFFFF) >= 0x100 and (x & 0xFFFF) < 0x100 + numCells
 
+assert len(r) == 0
 
